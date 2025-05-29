@@ -3,10 +3,6 @@ import pandas as pd
 from pandasai import PandasAI
 from pandasai.llm.openai import OpenAI
 import os
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv()
 
 # --- Streamlit Setup ---
 st.set_page_config(
@@ -14,6 +10,21 @@ st.set_page_config(
     page_icon="🧠",
     layout="wide"
 )
+
+# Check for API key
+if 'OPENAI_API_KEY' not in st.secrets:
+    st.error("⚠️ OpenAI API key not found!")
+    st.markdown("""
+    To use this app, you need to set up your OpenAI API key:
+    1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
+    2. Create a new API key
+    3. Create a `.streamlit/secrets.toml` file in your project directory
+    4. Add your API key like this:
+    ```toml
+    OPENAI_API_KEY = "your-api-key-here"
+    ```
+    """)
+    st.stop()
 
 st.title("🧠 Data Analysis Assistant")
 
@@ -45,8 +56,8 @@ if uploaded_file is not None:
             st.write("Sample Data:")
             st.dataframe(data.head())
         
-        # Initialize PandasAI with OpenAI
-        llm = OpenAI(api_token=os.getenv("OPENAI_API_KEY"))
+        # Initialize PandasAI with OpenAI using secrets
+        llm = OpenAI(api_token=st.secrets["OPENAI_API_KEY"])
         pandas_ai = PandasAI(llm)
         
         # Natural Language Query Section
