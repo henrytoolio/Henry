@@ -2,3 +2,4 @@
   pandas
   pandasai
   python-dotenv
+  duckdb 
