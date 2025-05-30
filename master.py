@@ -36,57 +36,51 @@ This app allows you to:
 """)
 
 # --- File Upload ---
-uploaded_file = st.file_uploader("Upload your CSV file", type="csv")
+st.subheader("Step 1: Upload your CSV file")
+uploaded_file = st.file_uploader("Choose a CSV file to analyze", type="csv")
 
-if uploaded_file is not None:
-    try:
-        # Read the uploaded file
-        data = pd.read_csv(uploaded_file)
-        st.success("✅ File loaded successfully!")
-        
-        # Display basic information about the dataset
-        st.subheader("📊 Dataset Overview")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.write("Dataset Shape:", data.shape)
-            st.write("Columns:", list(data.columns))
-        
-        with col2:
-            st.write("Sample Data:")
-            st.dataframe(data.head())
-        
-        # Initialize PandasAI with OpenAI using secrets
-        llm = OpenAI(api_token=st.secrets["OPENAI_API_KEY"])
-        pandas_ai = PandasAI(llm)
-        
-        # Natural Language Query Section
-        st.subheader("💬 Ask Questions About Your Data")
-        user_question = st.text_input(
-            "Ask a question about your data:",
-            placeholder="Example: What is the average value of column X? or Show me a correlation between columns X and Y"
-        )
-        
-        if user_question:
-            with st.spinner("Analyzing your data..."):
-                try:
-                    # Get response from PandasAI
-                    response = pandas_ai.run(data, prompt=user_question)
-                    
-                    # Display the response
-                    st.subheader("📈 Analysis Results")
-                    if isinstance(response, pd.DataFrame):
-                        st.dataframe(response)
-                    else:
-                        st.write(response)
-                        
-                except Exception as e:
-                    st.error(f"An error occurred: {str(e)}")
-                    st.info("Try rephrasing your question or checking if the columns you're referring to exist in the dataset.")
+if uploaded_file is None:
+    st.info("📂 Please upload a CSV file to begin.")
+    st.stop()
+
+# --- Data Loading and Overview ---
+try:
+    data = pd.read_csv(uploaded_file)
+    st.success("✅ File loaded successfully!")
     
-    except Exception as e:
-        st.error(f"Error loading file: {str(e)}")
-        st.info("Please make sure you've uploaded a valid CSV file.")
+    st.subheader("Step 2: Dataset Overview")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("Dataset Shape:", data.shape)
+        st.write("Columns:", list(data.columns))
+    with col2:
+        st.write("Sample Data:")
+        st.dataframe(data.head())
+except Exception as e:
+    st.error(f"Error loading file: {str(e)}")
+    st.stop()
+
+# --- Natural Language Query Section ---
+st.subheader("Step 3: Ask Questions About Your Data")
+user_question = st.text_input(
+    "Ask a question about your data:",
+    placeholder="Example: What is the average value of column X? or Show me a correlation between columns X and Y"
+)
+
+if user_question:
+    with st.spinner("Analyzing your data..."):
+        try:
+            llm = OpenAI(api_token=st.secrets["OPENAI_API_KEY"])
+            pandas_ai = PandasAI(llm)
+            response = pandas_ai.run(data, prompt=user_question)
+            st.subheader("📈 Analysis Results")
+            if isinstance(response, pd.DataFrame):
+                st.dataframe(response)
+            else:
+                st.write(response)
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
+            st.info("Try rephrasing your question or checking if the columns you're referring to exist in the dataset.")
 
 else:
     st.info("📂 Please upload a CSV file to begin.")
