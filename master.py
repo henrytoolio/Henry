@@ -1,20 +1,36 @@
 import streamlit as st
 import pandas as pd
-import duckdb
+from pandasai import PandasAI
+from pandasai.llm.openai import OpenAI
 
 # --- Streamlit Setup ---
 st.set_page_config(
-    page_title="DuckDB SQL Query Tool",
-    page_icon="🦆",
+    page_title="Data Analysis Assistant",
+    page_icon="🧠",
     layout="wide"
 )
 
-st.title("🦆 DuckDB SQL Query Tool")
+# Check for API key
+if 'OPENAI_API_KEY' not in st.secrets:
+    st.error("⚠️ OpenAI API key not found!")
+    st.markdown("""
+    To use this app, you need to set up your OpenAI API key in Streamlit Cloud secrets:
+    1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
+    2. Create a new API key
+    3. Add your API key to the Streamlit Cloud secrets as:
+    ```toml
+    OPENAI_API_KEY = "your-api-key-here"
+    ```
+    """)
+    st.stop()
+
+st.title("🧠 Data Analysis Assistant")
 
 st.markdown("""
-Upload a CSV file and run SQL queries on it using DuckDB. 
-- The uploaded data will be available as a table named `data`.
-- Enter your SQL query below and see the results instantly!
+This app allows you to:
+- Upload your own CSV file
+- Ask questions about your data in natural language
+- Get insights and visualizations automatically
 """)
 
 # --- File Upload ---
@@ -25,32 +41,41 @@ if uploaded_file is None:
     st.info("📂 Please upload a CSV file to begin.")
     st.stop()
 
-# --- Data Loading ---
+# --- Data Loading and Overview ---
 try:
     data = pd.read_csv(uploaded_file)
     st.success("✅ File loaded successfully!")
-    st.write("Preview of uploaded data:")
-    st.dataframe(data.head())
+    st.subheader("Step 2: Dataset Overview")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("Dataset Shape:", data.shape)
+        st.write("Columns:", list(data.columns))
+    with col2:
+        st.write("Sample Data:")
+        st.dataframe(data.head())
 except Exception as e:
     st.error(f"Error loading file: {str(e)}")
     st.stop()
 
-# --- SQL Query Section ---
-st.subheader("Step 2: Enter your DuckDB SQL query")
-def_sql = """SELECT * FROM data LIMIT 5"""
-user_sql = st.text_area("SQL Query", value=def_sql, height=100)
+# --- Natural Language Query Section ---
+st.subheader("Step 3: Ask Questions About Your Data")
+user_question = st.text_input(
+    "Ask a question about your data:",
+    placeholder="Example: What is the average value of column X? or Show me a correlation between columns X and Y"
+)
 
-if st.button("Run Query"):
-    try:
-        con = duckdb.connect()
-        con.register("data", data)
-        result = con.execute(user_sql).fetchdf()
-        st.success("Query executed successfully!")
-        st.dataframe(result)
-        con.close()
-    except Exception as e:
-        st.error(f"Error running query: {str(e)}")
+if user_question:
+    with st.spinner("Analyzing your data..."):
+        try:
+            llm = OpenAI(api_token=st.secrets["OPENAI_API_KEY"])
+            pandas_ai = PandasAI(llm)
+            response = pandas_ai.run(data, prompt=user_question)
+            st.subheader("📈 Analysis Results")
+            if isinstance(response, pd.DataFrame):
+                st.dataframe(response)
+            else:
+                st.write(response)
+        except Exception as e:
+            st.error(f"An error occurred: {str(e)}")
+            st.info("Try rephrasing your question or checking if the columns you're referring to exist in the dataset.")
 
-
-else:
-    st.info("📂 Please upload a CSV file to begin.")
